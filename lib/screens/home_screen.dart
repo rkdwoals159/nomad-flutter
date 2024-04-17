@@ -1,157 +1,61 @@
-import 'dart:async';
-import 'dart:isolate';
-
 import 'package:flutter/material.dart';
+import 'package:toonflix/models/webtoon_model.dart';
+import 'package:toonflix/services/api_service.dart';
+import 'package:toonflix/widgets/webtoon_widget.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  static const twentyFiveMinutes = 3;
-  int totalSeconds = twentyFiveMinutes;
-  late Timer timer;
-  bool isRunning = false;
-  int totalPomodoros = 0;
-
-  String format(int seconds) {
-    var duration = Duration(seconds: seconds);
-    return duration.toString().split('.').first.substring(2, 7);
-  }
-
-  void onTick(Timer timer) {
-    if (totalSeconds == 0) {
-      setState(() {
-        totalPomodoros++;
-        isRunning = false;
-        totalSeconds = twentyFiveMinutes;
-      });
-      timer.cancel();
-    } else {
-      setState(() {
-        totalSeconds--;
-      });
-    }
-  }
-
-  void onStartPressed() {
-    setState(() {
-      isRunning = !isRunning;
-    });
-    setState(() {
-      timer = Timer.periodic(
-        const Duration(seconds: 1),
-        onTick,
-      );
-    });
-  }
-
-  void onPausePressed() {
-    setState(() {
-      timer.cancel();
-      isRunning = !isRunning;
-    });
-  }
-
-  void onStopPressed() {
-    setState(() {
-      timer.cancel();
-      isRunning = false;
-      totalSeconds = twentyFiveMinutes;
-      totalPomodoros = 0;
-    });
-  }
-
+class HomeScreen extends StatelessWidget {
+  HomeScreen({super.key});
+  final Future<List<WebtoonModel>> webtoons = ApiService().getTodayToons();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
-      body: Column(
-        children: [
-          Flexible(
-            flex: 1,
-            child: Container(
-              alignment: Alignment.bottomCenter,
-              child: Text(
-                format(totalSeconds),
-                style: TextStyle(
-                    color: Theme.of(context).cardColor,
-                    fontSize: 89,
-                    fontWeight: FontWeight.w600),
-              ),
-            ),
+      appBar: AppBar(
+        elevation: 2,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color.fromARGB(255, 122, 224, 125),
+        title: const Text(
+          "Naver",
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w900,
           ),
-          Flexible(
-            flex: 2,
-            child: Center(
-                child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+        ),
+      ),
+      body: FutureBuilder(
+        future: webtoons,
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            return Column(
               children: [
-                IconButton(
-                  icon: Icon(
-                    isRunning
-                        ? Icons.pause_circle_outline
-                        : Icons.play_circle_outline,
-                  ),
-                  color: Theme.of(context).cardColor,
-                  iconSize: 128,
-                  onPressed: isRunning ? onPausePressed : onStartPressed,
+                const SizedBox(
+                  height: 50,
                 ),
-                Visibility(
-                  visible: isRunning,
-                  child: IconButton(
-                    icon: const Icon(Icons.stop_circle_outlined),
-                    color: Theme.of(context).cardColor,
-                    iconSize: 128,
-                    onPressed: onStopPressed,
-                  ),
-                ),
+                Expanded(child: makeList(snapshot)),
               ],
-            )),
-          ),
-          Flexible(
-            flex: 1,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(50),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Pomodors',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color:
-                                Theme.of(context).textTheme.displayLarge!.color,
-                          ),
-                        ),
-                        Text(
-                          '$totalPomodoros',
-                          style: TextStyle(
-                            fontSize: 58,
-                            fontWeight: FontWeight.w600,
-                            color:
-                                Theme.of(context).textTheme.displayLarge!.color,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+            );
+          }
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        },
       ),
     );
+  }
+
+  ListView makeList(AsyncSnapshot<List<WebtoonModel>> snapshot) {
+    return ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        scrollDirection: Axis.horizontal,
+        itemCount: snapshot.data!.length,
+        itemBuilder: (context, index) {
+          final webtoon = snapshot.data![index];
+          return Webtoon(
+              id: webtoon.id,
+              thumb: webtoon.thumb,
+              title: webtoon.title);
+        },
+        separatorBuilder: (context, index) => const SizedBox(
+              width: 40,
+            ));
   }
 }
